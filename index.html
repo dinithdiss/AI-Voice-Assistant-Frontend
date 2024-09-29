@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumi-Voice Assistant</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: "Arial", sans-serif;
+        background: #302b27;
+        color: #acb0bd;
+        overflow: hidden;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        padding: 40px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        font-size: clamp(1.5em, 5vw, 2.5em);
+        margin-bottom: 20px;
+        color: #ffffff;
+      }
+
+      #conversation {
+        width: 90%;
+        max-width: 800px;
+        height: 60%;
+        overflow-y: auto;
+        background: #302b27;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: #ffffff;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .message p {
+        font-size: clamp(1em, 2vw, 1.2em);
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      #status {
+        font-size: clamp(1em, 2vw, 1.2em);
+        margin-bottom: 20px;
+        color: #b3b3b3;
+      }
+
+      #toggleBtn {
+        width: 20vw; /* Responsive width based on viewport width */
+        max-width: 120px; /* Maximum width to prevent it from getting too large */
+        aspect-ratio: 1 / 1; /* Ensures the height is always equal to the width */
+        padding: 0;
+        font-size: calc(10px + 1vw); /* Responsive font size */
+        background-color: #1e3888;
+        color: white;
+        border: none;
+        border-radius: 50%; /* Makes the button circular */
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      /* Media query for smaller screens */
+      @media (max-width: 768px) {
+        #toggleBtn {
+          width: 30vw; /* Slightly larger percentage for smaller screens */
+          max-width: 100px; /* Adjust maximum size for smaller screens */
+        }
+      }
+
+      #toggleBtn:hover {
+        background-color: #2a3b53;
+        transform: scale(1.05);
+      }
+
+      .bubble {
+        width: clamp(40px, 10vw, 60px);
+        height: clamp(40px, 10vw, 60px);
+        background-color: rgba(0, 179, 255, 0.3);
+        border-radius: 50%;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        animation: pulse 1.5s infinite;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .large-bubble {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(350px, 80vw);
+        height: min(350px, 80vw);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      .large-bubble video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+      }
+
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        z-index: 999;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 10px;
+        }
+
+        #conversation {
+          width: 95%;
+          height: 70%;
+        }
+
+        .large-bubble {
+          width: min(250px, 70vw);
+          height: min(250px, 70vw);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>I'm Lumi</h1>
+      <h3>Ask Me Anything ...</h3>
+      <div id="conversation"></div>
+
+      <div id="status">Click "Start" to begin</div>
+      <button id="toggleBtn">Start</button>
+      <p>Powered By Dinith Dissanayaka</p>
+    </div>
+
+    <div class="bubble" id="assistantBubble">🎙️</div>
+    <div class="overlay" id="overlay"></div>
+    <div class="large-bubble" id="largeBubble">
+      <video loop muted>
+        <source src="./vvd.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <script>
+      const conversation = document.getElementById("conversation");
+      const status = document.getElementById("status");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const assistantBubble = document.getElementById("assistantBubble");
+      const largeBubble = document.getElementById("largeBubble");
+      const bubbleVideo = largeBubble.querySelector("video");
+      const overlay = document.getElementById("overlay");
+
+      let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      let isListening = false;
+
+      function addMessage(text) {
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+        const messageParagraph = document.createElement("p");
+        messageDiv.appendChild(messageParagraph);
+        conversation.appendChild(messageDiv);
+        typeText(messageParagraph, text);
+        conversation.scrollTop = conversation.scrollHeight;
+      }
+
+      function typeText(element, text) {
+        let index = 0;
+        element.style.opacity = 1;
+        function type() {
+          if (index < text.length) {
+            element.textContent += text.charAt(index);
+            index++;
+            setTimeout(type, 20);
+          }
+        }
+        type();
+      }
+
+      recognition.onresult = function (event) {
+        const text = event.results[0][0].transcript;
+        addMessage(text);
+        sendToServer(text);
+      };
+
+      recognition.onerror = function (event) {
+        console.error("Error occurred in recognition: " + event.error);
+        stopListening();
+      };
+
+      recognition.onend = function () {
+        if (isListening) {
+          recognition.start();
+        }
+      };
+
+      function sendToServer(text) {
+        showBubble();
+        fetch("https://ai-voice-assistant-azure.vercel.app/voice", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: text }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            hideBubble();
+            addMessage(data.response);
+            speakResponse(data.response);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            hideBubble();
+            addMessage("Error communicating with the server: " + error.message);
+          });
+      }
+
+      function speakResponse(text) {
+        stopListening();
+        let utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = function () {
+          startListening();
+        };
+        speechSynthesis.speak(utterance);
+      }
+
+      function showBubble() {
+        assistantBubble.style.opacity = 1;
+        largeBubble.style.opacity = 1;
+        overlay.style.opacity = 1;
+        bubbleVideo.play();
+      }
+
+      function hideBubble() {
+        assistantBubble.style.opacity = 0;
+        largeBubble.style.opacity = 0;
+        overlay.style.opacity = 0;
+        bubbleVideo.pause();
+      }
+
+      function startListening() {
+        isListening = true;
+        recognition.start();
+        status.textContent = "Listening...";
+        toggleBtn.textContent = "Stop";
+        showBubble();
+      }
+
+      function stopListening() {
+        isListening = false;
+        recognition.stop();
+        status.textContent = "Not listening";
+        toggleBtn.textContent = "Start";
+        hideBubble();
+      }
+
+      toggleBtn.onclick = function () {
+        if (isListening) {
+          stopListening();
+        } else {
+          startListening();
+        }
+      };
+    </script>
+  </body>
+</html>
