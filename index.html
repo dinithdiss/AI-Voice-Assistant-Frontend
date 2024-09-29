@@ -30,38 +30,7 @@
         font-size: clamp(1.5em, 5vw, 2.5em);
         margin-bottom: 20px;
         color: #ffffff;
-      }
-
-      #conversation {
-        width: 90%;
-        max-width: 800px;
-        height: 60%;
-        overflow-y: auto;
-        background: #302b27;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-        color: #ffffff;
-      }
-
-      .message {
-        margin-bottom: 15px;
-        opacity: 0;
-        transition: opacity 0.5s ease-in-out;
-      }
-
-      .message p {
-        font-size: clamp(1em, 2vw, 1.2em);
-        animation: fadeIn 0.5s ease-in-out forwards;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
+        margin-top: 10px; /* Added top margin for spacing from the top */
       }
 
       #status {
@@ -71,15 +40,15 @@
       }
 
       #toggleBtn {
-        width: 20vw; /* Responsive width based on viewport width */
-        max-width: 120px; /* Maximum width to prevent it from getting too large */
-        aspect-ratio: 1 / 1; /* Ensures the height is always equal to the width */
+        width: 20vw;
+        max-width: 120px;
+        aspect-ratio: 1 / 1;
         padding: 0;
-        font-size: calc(10px + 1vw); /* Responsive font size */
+        font-size: calc(10px + 1vw);
         background-color: #1e3888;
         color: white;
         border: none;
-        border-radius: 50%; /* Makes the button circular */
+        border-radius: 50%;
         cursor: pointer;
         transition: background-color 0.3s, transform 0.3s;
         display: flex;
@@ -88,11 +57,10 @@
         text-align: center;
       }
 
-      /* Media query for smaller screens */
       @media (max-width: 768px) {
         #toggleBtn {
-          width: 30vw; /* Slightly larger percentage for smaller screens */
-          max-width: 100px; /* Adjust maximum size for smaller screens */
+          width: 30vw;
+          max-width: 100px;
         }
       }
 
@@ -167,11 +135,6 @@
           padding: 10px;
         }
 
-        #conversation {
-          width: 95%;
-          height: 70%;
-        }
-
         .large-bubble {
           width: min(250px, 70vw);
           height: min(250px, 70vw);
@@ -182,12 +145,22 @@
   <body>
     <div class="container">
       <h1>I'm Lumi</h1>
-      <h3>Ask Me Anything ...</h3>
-      <div id="conversation"></div>
-
-      <div id="status">Click "Start" to begin</div>
+      <h3>Ask Me Anything</h3>
+      <div id="status">Not listening</div>
       <button id="toggleBtn">Start</button>
-      <p>Powered By Dinith Dissanayaka</p>
+      <p
+        style="
+          position: absolute;
+          bottom: 10px;
+          left: 0;
+          right: 0;
+          text-align: center;
+          font-size: clamp(0.8em, 2vw, 1em);
+          color: #acb0bd;
+        "
+      >
+        Powered By Dinith Dissanayaka
+      </p>
     </div>
 
     <div class="bubble" id="assistantBubble">🎙️</div>
@@ -200,7 +173,6 @@
     </div>
 
     <script>
-      const conversation = document.getElementById("conversation");
       const status = document.getElementById("status");
       const toggleBtn = document.getElementById("toggleBtn");
       const assistantBubble = document.getElementById("assistantBubble");
@@ -215,32 +187,8 @@
 
       let isListening = false;
 
-      function addMessage(text) {
-        const messageDiv = document.createElement("div");
-        messageDiv.classList.add("message");
-        const messageParagraph = document.createElement("p");
-        messageDiv.appendChild(messageParagraph);
-        conversation.appendChild(messageDiv);
-        typeText(messageParagraph, text);
-        conversation.scrollTop = conversation.scrollHeight;
-      }
-
-      function typeText(element, text) {
-        let index = 0;
-        element.style.opacity = 1;
-        function type() {
-          if (index < text.length) {
-            element.textContent += text.charAt(index);
-            index++;
-            setTimeout(type, 20);
-          }
-        }
-        type();
-      }
-
       recognition.onresult = function (event) {
         const text = event.results[0][0].transcript;
-        addMessage(text);
         sendToServer(text);
       };
 
@@ -267,13 +215,12 @@
           .then((response) => response.json())
           .then((data) => {
             hideBubble();
-            addMessage(data.response);
             speakResponse(data.response);
           })
           .catch((error) => {
             console.error("Error:", error);
             hideBubble();
-            addMessage("Error communicating with the server: " + error.message);
+            status.textContent = "Error communicating with the server";
           });
       }
 
